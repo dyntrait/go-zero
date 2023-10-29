@@ -59,14 +59,14 @@ type (
 	ShedderOption func(opts *shedderOptions)
 
 	shedderOptions struct {
-		window       time.Duration
+		window       time.Duration //滑动时间窗口大小
 		buckets      int
 		cpuThreshold int64
 	}
 
 	adaptiveShedder struct {
 		cpuThreshold    int64
-		windows         int64
+		windows         int64 //1s对应的bucket个数
 		flying          int64
 		avgFlying       float64
 		avgFlyingLock   syncx.SpinLock
@@ -105,7 +105,7 @@ func NewAdaptiveShedder(opts ...ShedderOption) Shedder {
 	bucketDuration := options.window / time.Duration(options.buckets)
 	return &adaptiveShedder{
 		cpuThreshold:    options.cpuThreshold,
-		windows:         int64(time.Second / bucketDuration),
+		windows:         int64(time.Second / bucketDuration), //1s对应的bucket个数
 		overloadTime:    syncx.NewAtomicDuration(),
 		droppedRecently: syncx.NewAtomicBool(),
 		passCounter: collection.NewRollingWindow(options.buckets, bucketDuration,

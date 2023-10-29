@@ -24,10 +24,10 @@ type (
 	// A ConsistentHash is a ring hash implementation.
 	ConsistentHash struct {
 		hashFunc Func
-		replicas int
-		keys     []uint64
-		ring     map[uint64][]any
-		nodes    map[string]lang.PlaceholderType
+		replicas int                             // 虚拟节点放大因子
+		keys     []uint64                        // 存储虚拟节点（hash）,redis的key来找放哪个节点时，对hash(key)<=virtual node的hash,此时virtual node对应的真实node就是地址
+		ring     map[uint64][]any                // 虚拟节点与实际node的对应关系
+		nodes    map[string]lang.PlaceholderType //实际节点的字符串表示
 		lock     sync.RWMutex
 	}
 )

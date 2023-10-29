@@ -64,6 +64,7 @@ func (rw *RollingWindow) Reduce(fn func(b *Bucket)) {
 		diff = rw.size - span
 	}
 	if diff > 0 {
+		// [rw.offset - rw.offset+span]之间的桶数据是过期的不应该计入统计.Add和Reduce不能并发，所有这个时间段没有数据写入发生
 		offset := (rw.offset + span + 1) % rw.size
 		rw.win.reduce(offset, diff, fn)
 	}
@@ -86,6 +87,12 @@ func (rw *RollingWindow) updateOffset() {
 
 	offset := rw.offset
 	// reset expired buckets
+	//既然经过了span个桶的时间没有写入数据
+	//那么这些桶内的数据就不应该继续保留了，属于过期数据清空即可
+	//可以看到这里全部用的 % 取余操作，可以实现按照下标周期性写入
+	//如果超出下标了那就从头开始写，确保新数据一定能够正常写入
+	//类似循环数组的效果
+
 	for i := 0; i < span; i++ {
 		rw.win.resetBucket((offset + i + 1) % rw.size)
 	}
@@ -93,6 +100,7 @@ func (rw *RollingWindow) updateOffset() {
 	rw.offset = (offset + span) % rw.size
 	now := timex.Now()
 	// align to interval time boundary
+	// 减掉尾巴
 	rw.lastTime = now - (now-rw.lastTime)%rw.interval
 }
 

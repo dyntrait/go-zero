@@ -18,6 +18,8 @@ const (
 	timeFormat        = "15:04:05"
 )
 
+// 熔断器 放行了，req被调用，但是req的结果可能失败或者成功，此时需要回头告诉熔断qi,让熔断器完成统计
+
 // ErrServiceUnavailable is returned when the Breaker state is open.
 var ErrServiceUnavailable = errors.New("circuit breaker is open")
 

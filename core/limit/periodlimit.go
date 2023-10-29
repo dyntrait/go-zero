@@ -50,11 +50,13 @@ type (
 
 	// A PeriodLimit is used to limit requests during a period of time.
 	PeriodLimit struct {
-		period     int
+		period int
+		//请求上限
 		quota      int
 		limitStore *redis.Redis
 		keyPrefix  string
-		align      bool
+		//比如quota=5时，quota实际值可能会是5.4.3.2.1呈现出周期性变化
+		align bool
 	}
 )
 
