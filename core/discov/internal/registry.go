@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -14,6 +15,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/syncx"
 	"github.com/zeromicro/go-zero/core/threading"
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -22,6 +24,7 @@ var (
 		clusters: make(map[string]*cluster),
 	}
 	connManager = syncx.NewResourceManager()
+	errClosed   = errors.New("etcd monitor chan has been closed")
 )
 
 // A Registry is a registry that manages the etcd client connections.
@@ -81,9 +84,9 @@ type cluster struct {
 func newCluster(endpoints []string) *cluster {
 	return &cluster{
 		endpoints:  endpoints,
-		key:        getClusterKey(endpoints), //key是指endpoint的
+		key:        getClusterKey(endpoints),           //key是指endpoint的
 		values:     make(map[string]map[string]string), //这里第一个key是prefix,相当于父目录
-		listeners:  make(map[string][]UpdateListener), //这里的key是父目录，监听父目录下增删子key事件
+		listeners:  make(map[string][]UpdateListener),  //这里的key是父目录，监听父目录下增删子key事件
 		watchGroup: threading.NewRoutineGroup(),
 		done:       make(chan lang.PlaceholderType),
 	}
@@ -104,7 +107,7 @@ func (c *cluster) getClient() (EtcdClient, error) {
 	return val.(EtcdClient), nil
 }
 
-//自己的数据，
+// 自己的数据，
 func (c *cluster) getCurrent(key string) []KV {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -119,6 +122,7 @@ func (c *cluster) getCurrent(key string) []KV {
 
 	return kvs
 }
+
 // 从etcd获取数据，然后跟自己的数据比较，处理新增数据和删除数据
 func (c *cluster) handleChanges(key string, kvs []KV) {
 	var add []KV
@@ -208,7 +212,8 @@ func (c *cluster) handleWatchEvents(key string, events []*clientv3.Event) {
 		}
 	}
 }
-//去etcd根据前缀查key,查完之后更新cluster 的数据，并找出哪些是新来的子key或者自己的子key已经被删除了，然后对子key调用notify
+
+// 去etcd根据前缀查key,查完之后更新cluster 的数据，并找出哪些是新来的子key或者自己的子key已经被删除了，然后对子key调用notify
 func (c *cluster) load(cli EtcdClient, key string) int64 {
 	var resp *clientv3.GetResponse
 	for {
@@ -265,6 +270,7 @@ func (c *cluster) newClient() (EtcdClient, error) {
 
 	return cli, nil
 }
+
 // 当etcd客户端状态变成ready时，回调此函数
 func (c *cluster) reload(cli EtcdClient) {
 	c.lock.Lock()
@@ -289,40 +295,47 @@ func (c *cluster) reload(cli EtcdClient) {
 
 func (c *cluster) watch(cli EtcdClient, key string, rev int64) {
 	for {
-		if c.watchStream(cli, key, rev) {
+		err := c.watchStream(cli, key, rev)
+		if err == nil {
 			return
 		}
+
+		if rev != 0 && errors.Is(err, rpctypes.ErrCompacted) {
+			logx.Errorf("etcd watch stream has been compacted, try to reload, rev %d", rev)
+			rev = c.load(cli, key)
+		}
+
+		// log the error and retry
+		logx.Error(err)
 	}
 }
 
-func (c *cluster) watchStream(cli EtcdClient, key string, rev int64) bool {
+func (c *cluster) watchStream(cli EtcdClient, key string, rev int64) error {
 	var rch clientv3.WatchChan
 	if rev != 0 {
-		rch = cli.Watch(clientv3.WithRequireLeader(c.context(cli)), makeKeyPrefix(key), clientv3.WithPrefix(),
-			clientv3.WithRev(rev+1))
+		rch = cli.Watch(clientv3.WithRequireLeader(c.context(cli)), makeKeyPrefix(key),
+			clientv3.WithPrefix(), clientv3.WithRev(rev+1))
 	} else {
-		rch = cli.Watch(clientv3.WithRequireLeader(c.context(cli)), makeKeyPrefix(key), clientv3.WithPrefix())
+		rch = cli.Watch(clientv3.WithRequireLeader(c.context(cli)), makeKeyPrefix(key),
+			clientv3.WithPrefix())
 	}
 
 	for {
 		select {
 		case wresp, ok := <-rch:
 			if !ok {
-				logx.Error("etcd monitor chan has been closed")
-				return false
+				return errClosed
 			}
 			if wresp.Canceled {
-				logx.Errorf("etcd monitor chan has been canceled, error: %v", wresp.Err())
-				return false
+				return fmt.Errorf("etcd monitor chan has been canceled, error: %w", wresp.Err())
 			}
 			if wresp.Err() != nil {
-				logx.Error(fmt.Sprintf("etcd monitor chan error: %v", wresp.Err()))
-				return false
+				return fmt.Errorf("etcd monitor chan error: %w", wresp.Err())
 			}
 
 			c.handleWatchEvents(key, wresp.Events)
-		case <-c.done: //网络断开从新reload时，通知退出
-			return true
+		case <-c.done:
+			return nil
 		}
 	}
 }
