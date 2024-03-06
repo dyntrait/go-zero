@@ -30,7 +30,7 @@ type engine struct {
 	// timeout is the max timeout of all routes
 	timeout              time.Duration
 	unauthorizedCallback handler.UnauthorizedCallback
-	unsignedCallback     handler.UnsignedCallback
+	unsignedCallback     handler.UnsignedCallback //加解密失败时回调
 	chain                chain.Chain
 	middlewares          []Middleware
 	shedder              load.Shedder
@@ -100,7 +100,8 @@ func (ng *engine) bindRoute(fr featuredRoutes, router httpx.Router, metrics *sta
 	if chn == nil {
 		chn = ng.buildChainWithNativeMiddlewares(fr, route, metrics)
 	}
-
+	//判断fr是否启用了jwt
+	//jwt后面跟上sign(加密）
 	chn = ng.appendAuthHandler(fr, chn, verifier)
 
 	for _, middleware := range ng.middlewares {

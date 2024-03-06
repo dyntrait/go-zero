@@ -24,7 +24,7 @@ type (
 
 	// A PrivateKeyConf is a private key config.
 	PrivateKeyConf struct {
-		Fingerprint string
+		Fingerprint string  //相当于key,表示KeyFile的key
 		KeyFile     string
 	}
 

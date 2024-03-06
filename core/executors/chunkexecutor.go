@@ -109,5 +109,5 @@ func (bc *chunkContainer) RemoveAll() any {
 
 type chunk struct {
 	val  any
-	size int
+	size int //标识value的大小的
 }

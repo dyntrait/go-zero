@@ -86,7 +86,7 @@ func (p *Publisher) doKeepAlive() error {
 
 	for range ticker.C {
 		select {
-		case <-p.quit.Done():
+		case <-p.quit.Done(): //主动退出
 			return nil
 		default:
 			cli, err := p.doRegister()

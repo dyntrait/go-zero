@@ -89,7 +89,7 @@ func (h *timeoutHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		tw.mu.Lock()
 		defer tw.mu.Unlock()
 		dst := w.Header()
-		for k, vv := range tw.h {
+		for k, vv := range tw.h { //把tw的header copy到w.header
 			dst[k] = vv
 		}
 
@@ -191,7 +191,7 @@ func (tw *timeoutWriter) writeHeaderLocked(code int) {
 	checkWriteHeaderCode(code)
 
 	switch {
-	case tw.timedOut:
+	case tw.timedOut: //已经超时了，什么都不u哦了
 		return
 	case tw.wroteHeader:
 		if tw.req != nil {

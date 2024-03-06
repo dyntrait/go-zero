@@ -33,7 +33,7 @@ func NewServer(c RpcServerConf, register internal.RegisterFn) (*RpcServer, error
 		return nil, err
 	}
 
-	var server internal.Server
+	var server internal.Server //这是一个接口变量
 	metrics := stat.NewMetrics(c.ListenOn)
 	serverOptions := []internal.ServerOption{
 		internal.WithMetrics(metrics),

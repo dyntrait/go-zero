@@ -108,8 +108,10 @@ func NewAdaptiveShedder(opts ...ShedderOption) Shedder {
 		windows:         int64(time.Second / bucketDuration), //1s对应的bucket个数
 		overloadTime:    syncx.NewAtomicDuration(),
 		droppedRecently: syncx.NewAtomicBool(),
+		//忽略当前正在写入窗口（桶），时间周期不完整可能导致数据异常
 		passCounter: collection.NewRollingWindow(options.buckets, bucketDuration,
 			collection.IgnoreCurrentBucket()),
+		//响应时间统计，滑动时间窗口
 		rtCounter: collection.NewRollingWindow(options.buckets, bucketDuration,
 			collection.IgnoreCurrentBucket()),
 	}
@@ -140,7 +142,7 @@ func (as *adaptiveShedder) addFlying(delta int64) {
 	// it makes the service to serve as more requests as possible.
 	if delta < 0 {
 		as.avgFlyingLock.Lock()
-		as.avgFlying = as.avgFlying*flyingBeta + float64(flying)*(1-flyingBeta)
+		as.avgFlying = as.avgFlying*flyingBeta + float64(flying)*(1-flyingBeta)  //虽然叫 avgFlying，但是并不是平均的意思
 		as.avgFlyingLock.Unlock()
 	}
 }
@@ -149,7 +151,7 @@ func (as *adaptiveShedder) highThru() bool {
 	as.avgFlyingLock.Lock()
 	avgFlying := as.avgFlying
 	as.avgFlyingLock.Unlock()
-	maxFlight := as.maxFlight()
+	maxFlight := as.maxFlight() //最大的并发请求
 	return int64(avgFlying) > maxFlight && atomic.LoadInt64(&as.flying) > maxFlight
 }
 
@@ -157,13 +159,19 @@ func (as *adaptiveShedder) maxFlight() int64 {
 	// windows = buckets per second
 	// maxQPS = maxPASS * windows
 	// minRT = min average response time in milliseconds
-	// maxQPS * minRT / milliseconds_per_second
+	// maxQPS * minRT / milliseconds_per_second 1s最多pass个请求,为什么要除以1e3=1000？
+	// 1s内as.maxPass()*as.windows)个成功的个数
+	// 请求通过数与响应时间都是通过滑动窗口来实现的
+	// as.maxPass()*as.windows - 每个桶最大的qps * 1s内包含桶的数量
+	// as.minRt()/1e3 - 窗口所有桶中最小的平均响应时间 / 1000ms这里是为了转换成秒
+
 	return int64(math.Max(1, float64(as.maxPass()*as.windows)*(as.minRt()/1e3)))
 }
 
 func (as *adaptiveShedder) maxPass() int64 {
 	var result float64 = 1
 
+	//找到所有桶里的最大的
 	as.passCounter.Reduce(func(b *collection.Bucket) {
 		if b.Sum > result {
 			result = b.Sum
@@ -191,7 +199,12 @@ func (as *adaptiveShedder) minRt() float64 {
 }
 
 func (as *adaptiveShedder) shouldDrop() bool {
+	//1.当前cpu负载超过阈值
+	//2.服务处于冷却期内
+	//应该继续检查负载并尝试丢弃请求
 	if as.systemOverloaded() || as.stillHot() {
+		//检查正在处理的并发是否超出当前可承载的最大并发数
+		//超出则丢弃请求
 		if as.highThru() {
 			flying := atomic.LoadInt64(&as.flying)
 			as.avgFlyingLock.Lock()
@@ -267,7 +280,8 @@ func (p *promise) Fail() {
 }
 
 func (p *promise) Pass() {
-	rt := float64(timex.Since(p.start)) / float64(time.Millisecond)
+	//响应时间，单位毫秒
+	rt := float64(timex.Since(p.start)) / float64(time.Millisecond) //这里的桶是s为间隔的=》rt是ms
 	p.shedder.addFlying(-1)
 	p.shedder.rtCounter.Add(math.Ceil(rt))
 	p.shedder.passCounter.Add(1)

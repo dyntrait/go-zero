@@ -43,9 +43,11 @@ func NewRollingWindow(size int, interval time.Duration, opts ...RollingWindowOpt
 }
 
 // Add adds value to current bucket.
+
 func (rw *RollingWindow) Add(v float64) {
 	rw.lock.Lock()
 	defer rw.lock.Unlock()
+	// 滑动的动作发生在此
 	rw.updateOffset()
 	rw.win.add(rw.offset, v)
 }
@@ -56,7 +58,7 @@ func (rw *RollingWindow) Reduce(fn func(b *Bucket)) {
 	defer rw.lock.RUnlock()
 
 	var diff int
-	span := rw.span()
+	span := rw.span() //这么多个桶过期了,原因是时间往前，这段时间没有更新过
 	// ignore current bucket, because of partial data
 	if span == 0 && rw.ignoreCurrent {
 		diff = rw.size - 1
@@ -92,7 +94,8 @@ func (rw *RollingWindow) updateOffset() {
 	//可以看到这里全部用的 % 取余操作，可以实现按照下标周期性写入
 	//如果超出下标了那就从头开始写，确保新数据一定能够正常写入
 	//类似循环数组的效果
-
+	//buck数组从下标由小往大写，时间间隔没有写数据，说明这些桶数据比较老，清空
+    // 滑动窗口统计的是duration期间的数据，比如每个250ms的统计数据
 	for i := 0; i < span; i++ {
 		rw.win.resetBucket((offset + i + 1) % rw.size)
 	}
@@ -151,6 +154,8 @@ func (w *window) resetBucket(offset int) {
 }
 
 // IgnoreCurrentBucket lets the Reduce call ignore current bucket.
+// 	某些场景下因为当前正在写入的桶数据并没有经过完整的窗口时间间隔
+//	可能导致当前桶的统计并不准确
 func IgnoreCurrentBucket() RollingWindowOption {
 	return func(w *RollingWindow) {
 		w.ignoreCurrent = true

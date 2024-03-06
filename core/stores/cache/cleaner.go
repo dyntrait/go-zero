@@ -58,7 +58,7 @@ func AddCleanTask(task func() error, keys ...string) {
 func clean(key, value any) {
 	taskRunner.Schedule(func() {
 		dt := value.(delayTask)
-		err := dt.task()
+		err := dt.task()  //发生了函数调用
 		if err == nil {
 			return
 		}

@@ -158,7 +158,7 @@ func fillPath(u *nurl.URL, val map[string]any) error {
 func request(r *http.Request, cli client) (*http.Response, error) {
 	ctx := r.Context()
 	tracer := trace.TracerFromContext(ctx)
-	propagator := otel.GetTextMapPropagator()
+	propagator := otel.GetTextMapPropagator() //传播者
 
 	spanName := r.URL.Path
 	ctx, span := tracer.Start(

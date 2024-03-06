@@ -35,10 +35,10 @@ type (
 		container TaskContainer
 		waitGroup sync.WaitGroup
 		// avoid race condition on waitGroup when calling wg.Add/Done/Wait(...)
-		wgBarrier   syncx.Barrier
-		confirmChan chan lang.PlaceholderType
-		inflight    int32
-		guarded     bool
+		wgBarrier   syncx.Barrier             //保护waitgroup的Done Wait互斥？
+		confirmChan chan lang.PlaceholderType //一个通知：任务数达到了，可以批量执行了
+		inflight    int32                     //使用原子性保护
+		guarded     bool                      //使用lock保护
 		newTicker   func(duration time.Duration) timex.Ticker
 		lock        sync.Mutex
 	}
@@ -73,7 +73,7 @@ func (pe *PeriodicalExecutor) Add(task any) {
 
 // Flush forces pe to execute tasks.
 func (pe *PeriodicalExecutor) Flush() bool {
-	pe.enterExecution()
+	pe.enterExecution() //waitGrroup.Add（1）
 	return pe.executeTasks(func() any {
 		pe.lock.Lock()
 		defer pe.lock.Unlock()

@@ -108,16 +108,16 @@ func (c *container) addKv(key, value string) ([]string, bool) {
 	defer c.lock.Unlock()
 
 	c.dirty.Set(true)
-	keys := c.values[value]
+	keys := c.values[value] //参数value是rpc server的的key.参数的key是rpc server的实际地址
 	previous := append([]string(nil), keys...)
 	early := len(keys) > 0
-	if c.exclusive && early {
+	if c.exclusive && early { //处理地址
 		for _, each := range keys {
 			c.doRemoveKey(each)
 		}
 	}
 	c.values[value] = append(c.values[value], key)
-	c.mapping[key] = value
+	c.mapping[key] = value //key是rpc server 实际地址
 
 	if early {
 		return previous, true
@@ -139,12 +139,12 @@ func (c *container) doRemoveKey(key string) {
 	}
 
 	delete(c.mapping, key)
-	keys := c.values[server]
+	keys := c.values[server] //rpc server 的地址列表
 	remain := keys[:0]
 
 	for _, k := range keys {
 		if k != key {
-			remain = append(remain, k)
+			remain = append(remain, k) //留下别人
 		}
 	}
 
@@ -164,7 +164,7 @@ func (c *container) getValues() []string {
 	defer c.lock.Unlock()
 
 	var vals []string
-	for each := range c.values {
+	for each := range c.values {  //只要map中的key
 		vals = append(vals, each)
 	}
 	c.snapshot.Store(vals)

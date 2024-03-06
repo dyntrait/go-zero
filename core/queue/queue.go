@@ -15,6 +15,8 @@ import (
 
 const queueName = "queue"
 
+// 1.生产者可以生产1条消息放到Queue.channel里，然后等待一个Consumer来取走消费
+// 2.Queue可以给n个消费者发一条消息，每个消费者都可以接收到消息
 type (
 	// A Queue is a message queue.
 	Queue struct {
@@ -27,11 +29,11 @@ type (
 		producerCount        int
 		consumerCount        int
 		active               int32
-		channel              chan string
+		channel              chan string //生产者往channel放入一个string
 		quit                 chan struct{}
 		listeners            []Listener
-		eventLock            sync.Mutex
-		eventChannels        []chan any
+		eventLock            sync.Mutex //保护eventChannels这个切片的
+		eventChannels        []chan any //广播的，确保queue给每个消费者都发一条消息
 	}
 
 	// A Listener interface represents a listener that can be notified with queue events.
@@ -221,7 +223,7 @@ func (q *Queue) startConsumers(number int) {
 		q.eventChannels = append(q.eventChannels, eventChan)
 		q.eventLock.Unlock()
 		q.consumerRoutineGroup.Run(func() {
-			q.consume(eventChan)
+			q.consume(eventChan) //eventChan 表示广播通道
 		})
 	}
 }
@@ -233,6 +235,8 @@ func (q *Queue) startProducers(number int) {
 		})
 	}
 }
+
+// 实现了producer.ProduceListener interface
 
 type routineListener struct {
 	queue *Queue

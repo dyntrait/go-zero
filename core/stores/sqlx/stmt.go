@@ -33,7 +33,7 @@ func DisableStmtLog() {
 func SetSlowThreshold(threshold time.Duration) {
 	slowThreshold.Set(threshold)
 }
-
+//这里的conn实际类型是*sql.DB和*sql.Tx
 func exec(ctx context.Context, conn sessionConn, q string, args ...any) (sql.Result, error) {
 	guard := newGuard("exec")
 	if err := guard.start(q, args...); err != nil {
@@ -45,12 +45,13 @@ func exec(ctx context.Context, conn sessionConn, q string, args ...any) (sql.Res
 
 	return result, err
 }
-
+//这里的conn实际类型是*sql.Stmt
 func execStmt(ctx context.Context, conn stmtConn, q string, args ...any) (sql.Result, error) {
 	guard := newGuard("execStmt")
 	if err := guard.start(q, args...); err != nil {
 		return nil, err
 	}
+
 
 	result, err := conn.ExecContext(ctx, args...)
 	guard.finish(ctx, err)
@@ -94,6 +95,7 @@ func queryStmt(ctx context.Context, conn stmtConn, scanner func(*sql.Rows) error
 
 type (
 	sqlGuard interface {
+		// 获取完整的sql语句，为了输出到日志
 		start(q string, args ...any) error
 		finish(ctx context.Context, err error)
 	}

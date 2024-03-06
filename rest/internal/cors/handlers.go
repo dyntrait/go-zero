@@ -70,7 +70,7 @@ func checkAndSetHeaders(w http.ResponseWriter, r *http.Request, origins []string
 		return
 	}
 
-	origin := r.Header.Get(originHeader)
+	origin := r.Header.Get(originHeader) //从请求里获取origin,然后跟已经设置的比较
 	if isOriginAllowed(origins, origin) {
 		setHeader(w, origin)
 	}

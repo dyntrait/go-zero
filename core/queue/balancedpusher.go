@@ -35,7 +35,7 @@ func (pusher *BalancedPusher) Push(message string) error {
 	size := len(pusher.pushers)
 
 	for i := 0; i < size; i++ {
-		index := atomic.AddUint64(&pusher.index, 1) % uint64(size)
+		index := atomic.AddUint64(&pusher.index, 1) % uint64(size) //按次序每个pusher都push一下
 		target := pusher.pushers[index]
 
 		if err := target.Push(message); err != nil {

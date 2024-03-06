@@ -8,7 +8,7 @@ type VectorOpts struct {
 	Subsystem string
 	Name      string
 	Help      string
-	Labels    []string
+	Labels    []string //向量的分区
 }
 
 func update(fn func()) {

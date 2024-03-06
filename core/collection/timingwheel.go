@@ -18,6 +18,8 @@ var (
 	ErrArgument = errors.New("incorrect task argument")
 )
 
+//时间一到执行函数
+
 type (
 	// Execute defines the method to execute the task.
 	Execute func(key, value any)
@@ -25,15 +27,15 @@ type (
 	// A TimingWheel is a timing wheel object to schedule tasks.
 	TimingWheel struct {
 		interval      time.Duration
-		ticker        timex.Ticker
+		ticker        timex.Ticker //驱动指针转到，每转一下，就先去槽对应的list遍历这条列表上的定时任务：降circle
 		slots         []*list.List
 		timers        *SafeMap
 		tickedPos     int
 		numSlots      int
 		execute       Execute
-		setChannel    chan timingEntry
-		moveChannel   chan baseEntry
-		removeChannel chan any
+		setChannel    chan timingEntry  //新到来一个timer （delaytime,key,value）
+		moveChannel   chan baseEntry //move timer （delaytime key）更新task的value
+		removeChannel chan any  //删除一个timer,传进来的是定时器的key
 		drainChannel  chan func(key, value any)
 		stopChannel   chan lang.PlaceholderType
 	}
@@ -199,12 +201,13 @@ func (tw *TimingWheel) moveTask(task baseEntry) {
 		return
 	}
 
+
 	timer := val.(*positionEntry)
 	if task.delay < tw.interval {
 		threading.GoSafe(func() {
 			tw.execute(timer.item.key, timer.item.value)
 		})
-		return
+		return 	// 这里为什么没有移除timer？
 	}
 
 	pos, circle := tw.getPositionAndCircle(task.delay)

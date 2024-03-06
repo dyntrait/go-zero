@@ -73,6 +73,7 @@ func NewClient(c RpcClientConf, options ...ClientOption) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	// target=etcd://127.0.0.1:2379/product.rpc
 
 	client, err := internal.NewClient(target, c.Middlewares, opts...)
 	if err != nil {

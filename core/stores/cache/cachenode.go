@@ -275,6 +275,7 @@ func (c cacheNode) processCache(ctx context.Context, key, data string, v any) er
 	return c.errNotFound
 }
 
+//数据库查不到才设置key保存的value是*
 func (c cacheNode) setCacheWithNotFound(ctx context.Context, key string) error {
 	seconds := int(math.Ceil(c.aroundDuration(c.notFoundExpiry).Seconds()))
 	_, err := c.rds.SetnxExCtx(ctx, key, notFoundPlaceholder, seconds)

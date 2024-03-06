@@ -71,7 +71,7 @@ func (r *Registry) getCluster(endpoints []string) (c *cluster, exists bool) {
 type cluster struct {
 	endpoints  []string
 	key        string
-	values     map[string]map[string]string
+	values     map[string]map[string]string //按前缀管理 每个前缀下面有很多子ley
 	listeners  map[string][]UpdateListener
 	watchGroup *threading.RoutineGroup
 	done       chan lang.PlaceholderType
@@ -81,9 +81,9 @@ type cluster struct {
 func newCluster(endpoints []string) *cluster {
 	return &cluster{
 		endpoints:  endpoints,
-		key:        getClusterKey(endpoints),
-		values:     make(map[string]map[string]string),
-		listeners:  make(map[string][]UpdateListener),
+		key:        getClusterKey(endpoints), //key是指endpoint的
+		values:     make(map[string]map[string]string), //这里第一个key是prefix,相当于父目录
+		listeners:  make(map[string][]UpdateListener), //这里的key是父目录，监听父目录下增删子key事件
 		watchGroup: threading.NewRoutineGroup(),
 		done:       make(chan lang.PlaceholderType),
 	}
@@ -104,6 +104,7 @@ func (c *cluster) getClient() (EtcdClient, error) {
 	return val.(EtcdClient), nil
 }
 
+//自己的数据，
 func (c *cluster) getCurrent(key string) []KV {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -118,7 +119,7 @@ func (c *cluster) getCurrent(key string) []KV {
 
 	return kvs
 }
-
+// 从etcd获取数据，然后跟自己的数据比较，处理新增数据和删除数据
 func (c *cluster) handleChanges(key string, kvs []KV) {
 	var add []KV
 	var remove []KV
@@ -138,7 +139,7 @@ func (c *cluster) handleChanges(key string, kvs []KV) {
 			m[kv.Key] = kv.Val
 		}
 		for k, v := range vals {
-			if val, ok := m[k]; !ok || v != val {
+			if val, ok := m[k]; !ok || v != val { //去etcd数据找，找不到或者找到了但是value不一样，说明自己的数据变旧了
 				remove = append(remove, KV{
 					Key: k,
 					Val: v,
@@ -153,7 +154,7 @@ func (c *cluster) handleChanges(key string, kvs []KV) {
 				})
 			}
 		}
-		c.values[key] = m
+		c.values[key] = m //m表示最新的数据，所以直接覆盖
 	}
 	c.lock.Unlock()
 
@@ -207,13 +208,13 @@ func (c *cluster) handleWatchEvents(key string, events []*clientv3.Event) {
 		}
 	}
 }
-
+//去etcd根据前缀查key,查完之后更新cluster 的数据，并找出哪些是新来的子key或者自己的子key已经被删除了，然后对子key调用notify
 func (c *cluster) load(cli EtcdClient, key string) int64 {
 	var resp *clientv3.GetResponse
 	for {
 		var err error
 		ctx, cancel := context.WithTimeout(c.context(cli), RequestTimeout)
-		resp, err = cli.Get(ctx, makeKeyPrefix(key), clientv3.WithPrefix())
+		resp, err = cli.Get(ctx, makeKeyPrefix(key), clientv3.WithPrefix()) //  clientv3.WithPrefix() 用于查找以 /aa 为前缀的所有 key
 		cancel()
 		if err == nil {
 			break
@@ -246,7 +247,7 @@ func (c *cluster) monitor(key string, l UpdateListener) error {
 		return err
 	}
 
-	rev := c.load(cli, key)
+	rev := c.load(cli, key) //先获取一下
 	c.watchGroup.Run(func() {
 		c.watch(cli, key, rev)
 	})
@@ -264,7 +265,7 @@ func (c *cluster) newClient() (EtcdClient, error) {
 
 	return cli, nil
 }
-
+// 当etcd客户端状态变成ready时，回调此函数
 func (c *cluster) reload(cli EtcdClient) {
 	c.lock.Lock()
 	close(c.done)
@@ -320,7 +321,7 @@ func (c *cluster) watchStream(cli EtcdClient, key string, rev int64) bool {
 			}
 
 			c.handleWatchEvents(key, wresp.Events)
-		case <-c.done:
+		case <-c.done: //网络断开从新reload时，通知退出
 			return true
 		}
 	}

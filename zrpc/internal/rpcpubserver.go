@@ -17,7 +17,7 @@ const (
 func NewRpcPubServer(etcd discov.EtcdConf, listenOn string, middlewares ServerMiddlewaresConf,
 	opts ...ServerOption) (Server, error) {
 	registerEtcd := func() error {
-		pubListenOn := figureOutListenOn(listenOn)
+		pubListenOn := figureOutListenOn(listenOn) //找到实际的服务器对外地址
 		var pubOpts []discov.PubOption
 		if etcd.HasAccount() {
 			pubOpts = append(pubOpts, discov.WithPubEtcdAccount(etcd.User, etcd.Pass))

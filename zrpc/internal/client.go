@@ -56,7 +56,7 @@ func NewClient(target string, middlewares ClientMiddlewaresConf, opts ...ClientO
 	svcCfg := fmt.Sprintf(`{"loadBalancingPolicy":"%s"}`, p2c.Name)
 	balancerOpt := WithDialOption(grpc.WithDefaultServiceConfig(svcCfg))
 	opts = append([]ClientOption{balancerOpt}, opts...)
-	if err := cli.dial(target, opts...); err != nil {
+	if err := cli.dial(target, opts...); err != nil { //通过cli.dial初始化*grpc.ClientConn成员(struct)
 		return nil, err
 	}
 

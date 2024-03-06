@@ -7,8 +7,8 @@ type Queue struct {
 	lock     sync.Mutex
 	elements []any
 	size     int
-	head     int
-	tail     int
+	head     int //标记下个第一个要出队的元素所在的下标
+	tail     int //标记下一个入队元素放在切片哪的小标
 	count    int
 }
 
@@ -34,9 +34,14 @@ func (q *Queue) Put(element any) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
+	// 入队的速度赶上出队速度，切片是循环利用的
 	if q.head == q.tail && q.count > 0 {
+		//扩容
 		nodes := make([]any, len(q.elements)+q.size)
+		//把还没有出队的元素放到新队列头部
+		//处理[head,旧队列尾部]元素
 		copy(nodes, q.elements[q.head:])
+		//[head,旧队列尾部]元素个数=len(q.elements)-q.head
 		copy(nodes[len(q.elements)-q.head:], q.elements[:q.head])
 		q.head = 0
 		q.tail = len(q.elements)

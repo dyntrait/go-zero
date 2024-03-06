@@ -25,8 +25,8 @@ type (
 
 	// A Server is a http server.
 	Server struct {
-		ngin   *engine
-		router httpx.Router
+		ngin   *engine      //配置时使用
+		router httpx.Router //处理请求时使用
 	}
 )
 
@@ -179,7 +179,7 @@ func WithJwt(secret string) RouteOption {
 	}
 }
 
-// WithJwtTransition returns a func to enable jwt authentication as well as jwt secret transition.
+// WithJwtTransition returns a func to enable jwt authentication as well as jwt secret transition(转型).
 // Which means old and new jwt secrets work together for a period.
 func WithJwtTransition(secret, prevSecret string) RouteOption {
 	return func(r *featuredRoutes) {

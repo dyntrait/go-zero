@@ -45,7 +45,7 @@ func StartAgent(c Config) {
 	defer lock.Unlock()
 
 	_, ok := agents[c.Endpoint]
-	if ok {
+	if ok { //ok表示已经创建过了
 		return
 	}
 
@@ -133,7 +133,7 @@ func startAgent(c Config) error {
 		opts = append(opts, sdktrace.WithBatcher(exp))
 	}
 
-	tp = sdktrace.NewTracerProvider(opts...)
+	tp = sdktrace.NewTracerProvider(opts...) //全局对象
 	otel.SetTracerProvider(tp)
 	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
 		logx.Errorf("[otel] error: %v", err)

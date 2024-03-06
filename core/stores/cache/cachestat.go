@@ -57,6 +57,7 @@ func (s *Stat) IncrementDbFails() {
 	atomic.AddUint64(&s.DbFails, 1)
 }
 
+//  "QPM" 可以是“Queries Per Minute”的缩写，表示每分钟的查询次数。这个定时器是1min执行一次
 func (s *Stat) statLoop(ticker timex.Ticker) {
 	for range ticker.Chan() {
 		total := atomic.SwapUint64(&s.Total, 0)

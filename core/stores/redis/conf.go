@@ -16,6 +16,7 @@ var (
 
 type (
 	// A RedisConf is a redis config.
+	// 被Cache使用
 	RedisConf struct {
 		Host     string
 		Type     string `json:",default=node,options=node|cluster"`

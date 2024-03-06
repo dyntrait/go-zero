@@ -30,11 +30,13 @@ type (
 	}
 
 	// SqlConn only stands for raw connections, so Transact method can be called.
+	// 对外的
 	SqlConn interface {
 		Session
 		// RawDB is for other ORM to operate with, use it with caution.
 		// Notice: don't close it.
 		RawDB() (*sql.DB, error)
+		// Transact 中的Session 实际上txSession类型
 		Transact(fn func(Session) error) error
 		TransactCtx(ctx context.Context, fn func(context.Context, Session) error) error
 	}
@@ -60,6 +62,7 @@ type (
 	// thread-safe
 	// Because CORBA doesn't support PREPARE, so we need to combine the
 	// query arguments into one string and do underlying query without arguments
+	// 其实还是使用时使用sql.DB
 	commonSqlConn struct {
 		connProv connProvider
 		onError  func(context.Context, error)
@@ -70,6 +73,7 @@ type (
 
 	connProvider func() (*sql.DB, error)
 
+	//*sql.DB  *sql.Tx实现了此接口
 	sessionConn interface {
 		Exec(query string, args ...any) (sql.Result, error)
 		ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
@@ -82,6 +86,7 @@ type (
 		stmt  *sql.Stmt
 	}
 
+	// *sql.Stmt实现了此接口
 	stmtConn interface {
 		Exec(args ...any) (sql.Result, error)
 		ExecContext(ctx context.Context, args ...any) (sql.Result, error)
@@ -183,6 +188,7 @@ func (db *commonSqlConn) PrepareCtx(ctx context.Context, query string) (stmt Stm
 			return err
 		}
 
+		// 直接调用sql.DB的函数
 		st, err := conn.PrepareContext(ctx, query)
 		if err != nil {
 			return err
