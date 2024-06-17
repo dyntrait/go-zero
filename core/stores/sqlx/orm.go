@@ -1,6 +1,7 @@
 package sqlx
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"strings"
@@ -89,7 +90,14 @@ func getValueInterface(value reflect.Value) (any, error) {
 	}
 }
 
+<<<<<<< HEAD
 // 这里v如果是个结构体，这个函数是依次获取结构体成员的列表，使用row.Scan（...）给结构体成员赋值
+=======
+func isScanFailed(err error) bool {
+	return err != nil && !errors.Is(err, context.DeadlineExceeded)
+}
+
+>>>>>>> f1ed7bd75de44ba1491a2627c36c86e649ae277e
 func mapStructFieldsIntoSlice(v reflect.Value, columns []string, strict bool) ([]any, error) {
 	fields := unwrapFields(v)                 //得到构成v的各成员的value，v此时应该是zero值
 	if strict && len(columns) < len(fields) { //列数跟结构体field个数对不上
@@ -256,7 +264,7 @@ func unmarshalRows(v any, scanner rowsScanner, strict bool) error {
 			return ErrUnsupportedValueType
 		}
 
-		return nil
+		return scanner.Err()
 	default:
 		return ErrUnsupportedValueType
 	}

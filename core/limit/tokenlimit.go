@@ -2,6 +2,7 @@ package limit
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/zeromicro/go-zero/core/errorx"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	xrate "golang.org/x/time/rate"
@@ -22,6 +24,7 @@ const (
 	pingInterval    = time.Millisecond * 100
 )
 
+<<<<<<< HEAD
 // to be compatible with aliyun redis, we cannot use `local key = KEYS[1]` to reuse the key
 // KEYS[1] as tokens_key 上次余下的数量
 // KEYS[2] as timestamp_key
@@ -56,6 +59,13 @@ redis.call("setex", KEYS[1], ttl, new_tokens)
 redis.call("setex", KEYS[2], ttl, now)
 
 return allowed`)
+=======
+var (
+	//go:embed tokenscript.lua
+	tokenLuaScript string
+	tokenScript    = redis.NewScript(tokenLuaScript)
+)
+>>>>>>> f1ed7bd75de44ba1491a2627c36c86e649ae277e
 
 // A TokenLimiter controls how frequently events are allowed to happen with in one second.
 type TokenLimiter struct {
@@ -117,7 +127,7 @@ func (lim *TokenLimiter) reserveN(ctx context.Context, now time.Time, n int) boo
 	}
 
 	resp, err := lim.store.ScriptRunCtx(ctx,
-		script,
+		tokenScript,
 		[]string{
 			lim.tokenKey,
 			lim.timestampKey,
@@ -130,10 +140,10 @@ func (lim *TokenLimiter) reserveN(ctx context.Context, now time.Time, n int) boo
 		})
 	// redis allowed == false
 	// Lua boolean false -> r Nil bulk reply
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		return false
 	}
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+	if errorx.In(err, context.DeadlineExceeded, context.Canceled) {
 		logx.Errorf("fail to use rate limiter: %s", err)
 		return false
 	}
