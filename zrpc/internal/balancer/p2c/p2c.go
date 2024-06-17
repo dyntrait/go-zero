@@ -28,7 +28,7 @@ const (
 	forcePick       = int64(time.Second)
 	initSuccess     = 1000
 	throttleSuccess = initSuccess / 2
-	penalty         = int64(math.MaxInt32)
+	penalty         = int64(math.MaxInt32) //惩罚
 	pickTimes       = 3
 	logInterval     = time.Minute
 )
@@ -53,7 +53,9 @@ func init() {
 type p2cPickerBuilder struct{}
 
 // gRPC 在节点有更新的时候会调用 Build 方法，传入所有节点信息，
-//我们在这里把每个节点信息用 subConn 结构保存起来。并归并到一起用 p2cPicker 结构保存起来
+// 我们在这里把每个节点信息用 subConn 结构保存起来。并归并到一起用 p2cPicker 结构保存起来
+//
+//	A SubConn represents a single connection to a gRPC backend service.
 func (b *p2cPickerBuilder) Build(info base.PickerBuildInfo) balancer.Picker {
 	readySCs := info.ReadySCs
 	if len(readySCs) == 0 {
@@ -87,7 +89,9 @@ type p2cPicker struct {
 	stamp *syncx.AtomicDuration //日志输出的间隔
 	lock  sync.Mutex
 }
-//  gRPC 是如何选择一个连接进行请求的发送？
+
+//	gRPC 是如何选择一个连接进行请求的发送？
+//
 // 当 gRPC 客户端发起调用的时候，会调用 ClientConn 的 Invoke 方法
 // 最终会调用 p2cPicker.Pick 方法获取连接，我们自定义的负载均衡算法一般都在 Pick 方法中实现，获取到连接之后，通过 sendMsg 发送请求
 // EWMA 指数移动加权平均的算法，表示是一段时间内的均值。该算法相对于算数平均来说对于突然的网络抖动没有那么敏感，
@@ -127,10 +131,13 @@ func (p *p2cPicker) Pick(_ balancer.PickInfo) (balancer.PickResult, error) {
 	atomic.AddInt64(&chosen.requests, 1)
 
 	return balancer.PickResult{
-		SubConn: chosen.conn, // SubConn is the connection to use for this pick, if its state is Ready.
+		SubConn: chosen.conn,             // SubConn is the connection to use for this pick, if its state is Ready.
 		Done:    p.buildDoneFunc(chosen), // Done is called when the RPC is completed，这是一个函数
 	}, nil
 }
+
+// 某个subConn被选中了，这个subConn发送完了请求后的回调函数
+// 根据请求来回之间的延迟时间，更新被选中连接的lag,和success.相当于告诉其他连接，我这次又被选中了
 
 func (p *p2cPicker) buildDoneFunc(c *subConn) func(info balancer.DoneInfo) {
 	start := int64(timex.Now())
@@ -146,6 +153,9 @@ func (p *p2cPicker) buildDoneFunc(c *subConn) func(info balancer.DoneInfo) {
 		}
 		// 系数 w 是一个时间衰减值，即两次请求的间隔越大，则系数 w 就越小。
 		// 用牛顿冷却定律中的衰减函数模型计算EWMA算法中的β值=1/(e的(k*(2次请求间隔）)
+		//从数学的角度来看，这个表达式可能用于计算某种基于时间的衰减或增长因子。例如，在物理或工程应用中，当某个量随时间呈指数衰减时，你可能会看到这样的表达式。
+		// 具体地，这个表达式的值将是一个介于0和正无穷大之间的数（除非decayTime为0，这将导致除以0的错误）。
+		//如果-td / decayTime是一个负数，那么math.Exp(...)的值将在0和1之间；如果它是一个正数，那么值将大于1
 		w := math.Exp(float64(-td) / float64(decayTime)) //计算e的w次方
 		// 保存本次请求的耗时
 		lag := int64(now) - start
@@ -211,11 +221,11 @@ func (p *p2cPicker) logStats() {
 
 type subConn struct {
 	lag      uint64 //连接的请求延迟 lag 用来保存 ewma 值
-	inflight int64// 用在保存当前节点正在处理的请求总数
-	success  uint64// 用来标识一段时间内此连接的健康状态
-	requests int64// 用来保存请求总数
-	last     int64 //  用来保存上一次请求耗时,
-	pick     int64 //chose time 保存上一次被选中的时间点
+	inflight int64  // 用在保存当前节点正在处理的请求总数
+	success  uint64 // 用来标识一段时间内此连接的健康状态
+	requests int64  // 用来保存请求总数
+	last     int64  //  用来保存上一次请求耗时,
+	pick     int64  //chose time 保存上一次被选中的时间点
 	addr     resolver.Address
 	conn     balancer.SubConn
 }
@@ -223,9 +233,10 @@ type subConn struct {
 func (c *subConn) healthy() bool {
 	return atomic.LoadUint64(&c.success) > throttleSuccess
 }
+
 //节点的 load 值是通过该连接的请求延迟 lag 和当前请求数 inflight 的乘积所得，如果请求的延迟越大或者当前正在处理的请求数越多表明该节点的负载越高。
 
-//ewma 相当于平均请求耗时，inflight 是当前节点正在处理请求的数量，相乘大致计算出了当前节点的网络负载。
+// ewma 相当于平均请求耗时，inflight 是当前节点正在处理请求的数量，相乘大致计算出了当前节点的网络负载。还需要多少时间才能处理完连接上已有的请求
 func (c *subConn) load() int64 {
 	// plus one to avoid multiply zero
 	lag := int64(math.Sqrt(float64(atomic.LoadUint64(&c.lag) + 1)))

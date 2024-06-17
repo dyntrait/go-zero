@@ -135,7 +135,7 @@ func newRedis(addr string, opts ...Option) *Redis {
 	r := &Redis{
 		Addr: addr,
 		Type: NodeType,
-		brk:  breaker.NewBreaker(),
+		brk:  breaker.NewBreaker(), //这里熔断器名字是随即算法生成的
 	}
 
 	for _, opt := range opts {
@@ -158,11 +158,11 @@ func (s *Redis) BitCount(key string, start, end int64) (int64, error) {
 // BitCountCtx is redis bitcount command implementation.
 func (s *Redis) BitCountCtx(ctx context.Context, key string, start, end int64) (val int64, err error) {
 	err = s.brk.DoWithAcceptable(func() error {
-		conn, err := getRedis(s)
+		conn, err := getRedis(s) //使用时在去获取，相当于在配置文件上具备redis的操作了
 		if err != nil {
 			return err
 		}
-
+		// 注意这里的val是命名函数值
 		val, err = conn.BitCount(ctx, key, &red.BitCount{
 			Start: start,
 			End:   end,

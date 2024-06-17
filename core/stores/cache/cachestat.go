@@ -11,7 +11,7 @@ import (
 const statInterval = time.Minute
 
 // A Stat is used to stat the cache.
-type Stat struct {
+type Stat struct { //会作为cacheNode的一个成员
 	name string
 	// export the fields to let the unit tests working,
 	// reside in internal package, doesn't matter.
@@ -57,7 +57,7 @@ func (s *Stat) IncrementDbFails() {
 	atomic.AddUint64(&s.DbFails, 1)
 }
 
-//  "QPM" 可以是“Queries Per Minute”的缩写，表示每分钟的查询次数。这个定时器是1min执行一次
+// "QPM" 可以是“Queries Per Minute”的缩写，表示每分钟的查询次数。这个定时器是1min执行一次。最新1min之内的cache查询结果
 func (s *Stat) statLoop(ticker timex.Ticker) {
 	for range ticker.Chan() {
 		total := atomic.SwapUint64(&s.Total, 0)

@@ -23,7 +23,7 @@ const (
 --ARGV[1]: 锁value,随机字符串
 --ARGV[2]: 过期时间
 --判断锁key持有的value是否等于传入的value
---如果相等说明是再次获取锁并更新获取时间，防止重入时过期
+--如果key存在且value相等说明是再次获取锁并更新获取时间，防止重入时过期
 --这里说明是“可重入锁”
 
 
@@ -32,6 +32,14 @@ const (
 --设置成功会自动返回“OK”，设置失败返回“NULL Bulk Reply”
 --为什么这里要加“NX”呢，因为需要防止把别人的锁给覆盖了
 
+
+-- 2个携程各自创建key同样的RedisLock,这样2个RedisLock的id值就不一样。
+-- A先来，A发现Key不存在，redis.call("SET", KEYS[1], ARGV[1], "NX", "PX", ARGV[2]返回OK,获取锁成功
+-- 此时B来了，发现redis.call("GET", KEYS[1]) ！= ARGV[1]，
+-- 但是就会调用redis.call("SET", KEYS[1], ARGV[1], "NX", "PX", ARGV[2])
+-- key没有过期或则还没被A释放，那B执行SET", KEYS[1], ARGV[1], "NX", "PX", ARGV[2] 返回Nil
+--若key过期或者key已经被A释放，那BSET", KEYS[1], ARGV[1], "NX", "PX", ARGV[2] 返回OK,获取锁成功
+-- 若A再次获取锁(他没有释放锁)，redis.call("GET", KEYS[1]) == ARGV[1],就让它再次得到锁，锁是可重入的
 
 */
 
@@ -52,7 +60,7 @@ end`)
 // A RedisLock is a redis lock.
 type RedisLock struct {
 	store   *Redis
-	seconds uint32
+	seconds uint32 //默认是0
 	key     string
 	id      string
 }
@@ -82,7 +90,7 @@ func (rl *RedisLock) AcquireCtx(ctx context.Context) (bool, error) {
 		rl.id, strconv.Itoa(int(seconds)*millisPerSecond + tolerance),
 	})
 	if err == red.Nil {
-		return false, nil
+		return false, nil //不存在key,才设置.如key存在，lua返回nil
 	} else if err != nil {
 		logx.Errorf("Error on acquiring lock for %s, %s", rl.key, err.Error())
 		return false, err

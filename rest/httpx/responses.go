@@ -108,7 +108,7 @@ func buildErrorHandler(ctx context.Context) func(error) (int, any) {
 	errorLock.RUnlock()
 
 	var handler func(error) (int, any) //从error得到http statuscode和 http body
-	if handlerCtx != nil {  //全局默认的errorHandler不为空使用之,为空则返回一个空函数
+	if handlerCtx != nil {             //全局默认的errorHandler不为空使用之,为空则返回一个空函数
 		handler = func(err error) (int, any) {
 			return handlerCtx(ctx, err)
 		}
@@ -120,7 +120,7 @@ func buildErrorHandler(ctx context.Context) func(error) (int, any) {
 func doHandleError(w http.ResponseWriter, err error, handler func(error) (int, any),
 	writeJson func(w http.ResponseWriter, code int, v any),
 	fns ...func(w http.ResponseWriter, err error)) {
-	if handler == nil {  // 全局默认的errorHandler，为空，使用fns和http.Error（w,error...)
+	if handler == nil { // 全局默认的errorHandler，为空，使用fns和http.Error（w,error...)
 		if len(fns) > 0 {
 			for _, fn := range fns {
 				fn(w, err)
@@ -136,7 +136,7 @@ func doHandleError(w http.ResponseWriter, err error, handler func(error) (int, a
 		return
 	}
 
-	code, body := handler(err) //code这里指http状态码
+	code, body := handler(err) //code这里指http状态码,body指返回的报文体
 	if body == nil {
 		w.WriteHeader(code)
 		return

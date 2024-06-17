@@ -7,6 +7,8 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// 此文件创建了一个redis连接，redis配置里面ReadTimeout=7s
+
 // ClosableNode interface represents a closable redis node.
 type ClosableNode interface {
 	RedisNode

@@ -44,7 +44,7 @@ func (r *Registry) GetConn(endpoints []string) (EtcdClient, error) {
 	return c.getClient()
 }
 
-// Monitor monitors the key on given etcd endpoints, notify with the given UpdateListener.
+// Monitor monitors the key on given etcd endpoints, notify with the given UpdateListener. l可以是个容器
 func (r *Registry) Monitor(endpoints []string, key string, l UpdateListener) error {
 	c, exists := r.getCluster(endpoints)
 	// if exists, the existing values should be updated to the listener.
@@ -74,7 +74,7 @@ func (r *Registry) getCluster(endpoints []string) (c *cluster, exists bool) {
 type cluster struct {
 	endpoints  []string
 	key        string
-	values     map[string]map[string]string //按前缀管理 每个前缀下面有很多子ley
+	values     map[string]map[string]string //按前缀管理 每个前缀下面有很多子key
 	listeners  map[string][]UpdateListener
 	watchGroup *threading.RoutineGroup
 	done       chan lang.PlaceholderType
@@ -85,7 +85,7 @@ func newCluster(endpoints []string) *cluster {
 	return &cluster{
 		endpoints:  endpoints,
 		key:        getClusterKey(endpoints),           //key是指endpoint的
-		values:     make(map[string]map[string]string), //这里第一个key是prefix,相当于父目录
+		values:     make(map[string]map[string]string), //这里第一个key是prefix,相当于父目录，用来缓存etcd里的key-value
 		listeners:  make(map[string][]UpdateListener),  //这里的key是父目录，监听父目录下增删子key事件
 		watchGroup: threading.NewRoutineGroup(),
 		done:       make(chan lang.PlaceholderType),
@@ -142,7 +142,7 @@ func (c *cluster) handleChanges(key string, kvs []KV) {
 		for _, kv := range kvs {
 			m[kv.Key] = kv.Val
 		}
-		for k, v := range vals {
+		for k, v := range vals { //m是新数据，vals是旧数据
 			if val, ok := m[k]; !ok || v != val { //去etcd数据找，找不到或者找到了但是value不一样，说明自己的数据变旧了
 				remove = append(remove, KV{
 					Key: k,

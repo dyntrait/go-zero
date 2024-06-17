@@ -46,7 +46,7 @@ func RawFieldNames(in any, postgreSql ...bool) []string {
 			// `db:"id,type=char,length=16"`
 			// `db:",type=char,length=16"`
 			// `db:"-,type=char,length=16"`
-			if strings.Contains(tagv, ",") {
+			if strings.Contains(tagv, ",") { 
 				tagv = strings.TrimSpace(strings.Split(tagv, ",")[0])
 			}
 			if tagv == "-" {

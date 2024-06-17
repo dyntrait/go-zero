@@ -48,9 +48,9 @@ type keepAliveServer struct {
 func (s keepAliveServer) Start(fn RegisterFn) error {
 	if err := s.registerEtcd(); err != nil {
 		return err
-	}
+	} //这里加入自己注册etcd的逻辑
 
-	return s.Server.Start(fn)
+	return s.Server.Start(fn) //交给rpcserver干
 }
 
 func figureOutListenOn(listenOn string) string {

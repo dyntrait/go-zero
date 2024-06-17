@@ -11,6 +11,13 @@ import (
 
 // EtcdClient interface represents an etcd client.
 type EtcdClient interface {
+	// grpc.ClientConn represents a virtual connection to a conceptual endpoint, to
+	// perform RPCs.
+	//
+	// A ClientConn is free to have zero or more actual connections to the endpoint
+	// based on configuration, load, etc. It is also free to determine which actual
+	// endpoints to use and may change it every RPC, permitting client-side load
+	// balancing.
 	ActiveConnection() *grpc.ClientConn
 	Close() error
 	Ctx() context.Context

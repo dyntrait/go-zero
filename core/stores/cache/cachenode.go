@@ -51,13 +51,13 @@ func NewNode(rds *redis.Redis, barrier syncx.SingleFlight, st *Stat,
 	return cacheNode{
 		rds:            rds,
 		expiry:         o.Expiry,
-		notFoundExpiry: o.NotFoundExpiry,
+		notFoundExpiry: o.NotFoundExpiry, //在数据库查不到时，就在redis如果key不存在，设置key-notFoundPlaceholder = "*"
 		barrier:        barrier,
 		r:              rand.New(rand.NewSource(time.Now().UnixNano())),
 		lock:           new(sync.Mutex),
 		unstableExpiry: mathx.NewUnstable(expiryDeviation),
 		stat:           st,
-		errNotFound:    errNotFound,
+		errNotFound:    errNotFound, //可以是sql.ErrNoRows
 	}
 }
 
@@ -73,7 +73,7 @@ func (c cacheNode) DelCtx(ctx context.Context, keys ...string) error {
 	}
 
 	logger := logx.WithContext(ctx)
-	if len(keys) > 1 && c.rds.Type == redis.ClusterType {
+	if len(keys) > 1 && c.rds.Type == redis.ClusterType { //集群删除要每个key单独删除一次
 		for _, key := range keys {
 			if _, err := c.rds.DelCtx(ctx, key); err != nil {
 				logger.Errorf("failed to clear cache with key: %q, error: %v", key, err)
@@ -275,7 +275,7 @@ func (c cacheNode) processCache(ctx context.Context, key, data string, v any) er
 	return c.errNotFound
 }
 
-//数据库查不到才设置key保存的value是*
+// 数据库查不到才设置key保存的value是*
 func (c cacheNode) setCacheWithNotFound(ctx context.Context, key string) error {
 	seconds := int(math.Ceil(c.aroundDuration(c.notFoundExpiry).Seconds()))
 	_, err := c.rds.SetnxExCtx(ctx, key, notFoundPlaceholder, seconds)

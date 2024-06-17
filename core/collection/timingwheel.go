@@ -33,9 +33,9 @@ type (
 		tickedPos     int
 		numSlots      int
 		execute       Execute
-		setChannel    chan timingEntry  //新到来一个timer （delaytime,key,value）
-		moveChannel   chan baseEntry //move timer （delaytime key）更新task的value
-		removeChannel chan any  //删除一个timer,传进来的是定时器的key
+		setChannel    chan timingEntry //新到来一个timer （delay time,key,value）
+		moveChannel   chan baseEntry   //move timer （delay time key）更新task的value,key在缓存中，更新其过期时间
+		removeChannel chan any         //删除一个timer,传进来的是定时器的key
 		drainChannel  chan func(key, value any)
 		stopChannel   chan lang.PlaceholderType
 	}
@@ -87,7 +87,7 @@ func NewTimingWheelWithTicker(interval time.Duration, numSlots int, execute Exec
 		numSlots:      numSlots,
 		setChannel:    make(chan timingEntry),
 		moveChannel:   make(chan baseEntry),
-		removeChannel: make(chan any),
+		removeChannel: make(chan any), //删除缓存key时，也要清理未过期的对应的定时器,标记删除状态
 		drainChannel:  make(chan func(key, value any)),
 		stopChannel:   make(chan lang.PlaceholderType),
 	}
@@ -201,13 +201,12 @@ func (tw *TimingWheel) moveTask(task baseEntry) {
 		return
 	}
 
-
 	timer := val.(*positionEntry)
 	if task.delay < tw.interval {
 		threading.GoSafe(func() {
 			tw.execute(timer.item.key, timer.item.value)
 		})
-		return 	// 这里为什么没有移除timer？
+		return // 这里为什么没有移除timer？
 	}
 
 	pos, circle := tw.getPositionAndCircle(task.delay)
@@ -250,13 +249,13 @@ func (tw *TimingWheel) run() {
 	for {
 		select {
 		case <-tw.ticker.Chan():
-			tw.onTick()
+			tw.onTick() //每转1步
 		case task := <-tw.setChannel:
-			tw.setTask(&task)
+			tw.setTask(&task) //新来的定时任务
 		case key := <-tw.removeChannel:
-			tw.removeTask(key)
+			tw.removeTask(key) //已经存在的定时任务作废
 		case task := <-tw.moveChannel:
-			tw.moveTask(task)
+			tw.moveTask(task) //更新已有定时任务的过期时间
 		case fn := <-tw.drainChannel:
 			tw.drainAll(fn)
 		case <-tw.stopChannel:
@@ -294,7 +293,7 @@ func (tw *TimingWheel) scanAndRunTasks(l *list.List) {
 			task.circle--
 			e = e.Next()
 			continue
-		} else if task.diff > 0 {
+		} else if task.diff > 0 { //属于同一轮的
 			next := e.Next()
 			l.Remove(e)
 			// (tw.tickedPos+task.diff)%tw.numSlots

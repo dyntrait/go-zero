@@ -18,7 +18,7 @@ type StartOption func(svr *http.Server)
 
 // StartHttp starts a http server.
 func StartHttp(host string, port int, handler http.Handler, opts ...StartOption) error {
-	return start(host, port, handler, func(svr *http.Server) error {
+	return start(host, port, handler, func(svr *http.Server) error { //执行start函数
 		return svr.ListenAndServe()
 	}, opts...)
 }

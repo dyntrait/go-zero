@@ -17,7 +17,7 @@ type TimeoutCallOption struct {
 func TimeoutInterceptor(timeout time.Duration) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn,
 		invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		t := getTimeoutFromCallOptions(opts, timeout)
+		t := getTimeoutFromCallOptions(opts, timeout) //取回超时时间
 		if t <= 0 {
 			return invoker(ctx, method, req, reply, cc, opts...)
 		}

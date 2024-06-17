@@ -84,6 +84,7 @@ func SetMapIndexValue(tp reflect.Type, value, key, target reflect.Value) {
 func ValidatePtr(v reflect.Value) error {
 	// sequence is very important, IsNil must be called after checking Kind() with reflect.Ptr,
 	// panic otherwise
+	// v.IsValid()判断v是否是zero value
 	if !v.IsValid() || v.Kind() != reflect.Ptr || v.IsNil() {
 		return fmt.Errorf("not a valid pointer: %v", v)
 	}

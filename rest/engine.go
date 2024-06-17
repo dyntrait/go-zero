@@ -29,8 +29,8 @@ type engine struct {
 	routes []featuredRoutes
 	// timeout is the max timeout of all routes
 	timeout              time.Duration
-	unauthorizedCallback handler.UnauthorizedCallback
-	unsignedCallback     handler.UnsignedCallback //加解密失败时回调
+	unauthorizedCallback handler.UnauthorizedCallback //jwt失败的处理回调，用来构造中间件的，在中间件里调用
+	unsignedCallback     handler.UnsignedCallback     //加解密失败时回调，用来构造中间件的，在中间件里调用
 	chain                chain.Chain
 	middlewares          []Middleware
 	shedder              load.Shedder
@@ -80,7 +80,7 @@ func (ng *engine) appendAuthHandler(fr featuredRoutes, chn chain.Chain,
 }
 
 func (ng *engine) bindFeaturedRoutes(router httpx.Router, fr featuredRoutes, metrics *stat.Metrics) error {
-	verifier, err := ng.signatureVerifier(fr.signature)
+	verifier, err := ng.signatureVerifier(fr.signature) //返回的是一个函数
 	if err != nil {
 		return err
 	}
@@ -94,6 +94,7 @@ func (ng *engine) bindFeaturedRoutes(router httpx.Router, fr featuredRoutes, met
 	return nil
 }
 
+// 先append fr里提供的chain,其次是jwt,这时的chain在传给verifier,接着添加加解密，然后是全局middleware，最后才是处理请求的handler
 func (ng *engine) bindRoute(fr featuredRoutes, router httpx.Router, metrics *stat.Metrics,
 	route Route, verifier func(chain.Chain) chain.Chain) error {
 	chn := ng.chain

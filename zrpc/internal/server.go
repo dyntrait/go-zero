@@ -20,10 +20,11 @@ type (
 		AddOptions(options ...grpc.ServerOption)
 		AddStreamInterceptors(interceptors ...grpc.StreamServerInterceptor)
 		AddUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor)
-		SetName(string)
+		SetName(string) //实际是设置stat.Metrics的name
 		Start(register RegisterFn) error
 	}
 
+	// 承载grpc的配置、自定义配置
 	baseRpcServer struct {
 		address            string
 		health             *health.Server

@@ -65,22 +65,6 @@ type (
 		Query(query string, args ...any) (*sql.Rows, error)
 		QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	}
-<<<<<<< HEAD
-
-	statement struct {
-		query string
-		stmt  *sql.Stmt
-	}
-
-	// *sql.Stmt实现了此接口
-	stmtConn interface {
-		Exec(args ...any) (sql.Result, error)
-		ExecContext(ctx context.Context, args ...any) (sql.Result, error)
-		Query(args ...any) (*sql.Rows, error)
-		QueryContext(ctx context.Context, args ...any) (*sql.Rows, error)
-	}
-=======
->>>>>>> upstream/master
 )
 
 // NewSqlConn returns a SqlConn with given driver name and datasource.

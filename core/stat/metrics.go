@@ -91,7 +91,7 @@ func (m *Metrics) SetName(name string) {
 type (
 	tasksDurationPair struct {
 		tasks    []Task
-		duration time.Duration
+		duration time.Duration //上面[]task的duration的sum
 		drops    int
 	}
 

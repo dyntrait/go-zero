@@ -7,6 +7,7 @@ import (
 
 type (
 	// Middleware defines the middleware method.
+	// 入参是函数，返回这也是一个函数
 	Middleware func(next http.HandlerFunc) http.HandlerFunc
 
 	// A Route is a http route.
@@ -30,6 +31,7 @@ type (
 		enabled bool
 	}
 
+	// Route上施加约束:接口超时，jwt认证，最大字节等
 	featuredRoutes struct {
 		timeout   time.Duration
 		priority  bool

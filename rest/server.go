@@ -226,8 +226,8 @@ func WithMiddleware(middleware Middleware, rs ...Route) []Route {
 // WithNotFoundHandler returns a RunOption with not found handler set to given handler.
 func WithNotFoundHandler(handler http.Handler) RunOption {
 	return func(server *Server) {
-		notFoundHandler := server.ngin.notFoundHandler(handler)
-		server.router.SetNotFoundHandler(notFoundHandler)
+		notFoundHandler := server.ngin.notFoundHandler(handler) //这是一个函数调用
+		server.router.SetNotFoundHandler(notFoundHandler)       //设置router的NotFoundHandler
 	}
 }
 

@@ -150,3 +150,4 @@ func TestWriteValue(t *testing.T) {
 	writeValue(&buf, tm)
 	assert.Equal(t, "'"+tm.String()+"'", buf.String())
 }
+

@@ -8,6 +8,7 @@ import (
 	"github.com/zeromicro/go-zero/core/metric"
 )
 
+// 信息的采集埋点在hook中
 const namespace = "redis_client"
 
 var (
@@ -34,17 +35,17 @@ var (
 		Labels:    []string{"command"},
 	})
 
-	connLabels                         = []string{"key", "client_type"}
-	connCollector                      = newCollector()
+	connLabels                         = []string{"key", "client_type"} //key是redis的地址
+	connCollector                      = newCollector()                 //收集像redis连接这类信息
 	_             prometheus.Collector = (*collector)(nil)
 )
 
 type (
 	statGetter struct {
 		clientType string
-		key        string
+		key        string //key是要连接的redis地址
 		poolSize   int
-		poolStats  func() *red.PoolStats
+		poolStats  func() *red.PoolStats //调用这个函数可以获取redis连接上的一些统计信息
 	}
 
 	// collector collects statistics from a redis client.
@@ -58,7 +59,7 @@ type (
 		staleDesc   *prometheus.Desc
 		maxDesc     *prometheus.Desc
 
-		clients []*statGetter
+		clients []*statGetter //有多少个redis连接客户端，在建立redis连接时赋值
 		lock    sync.Mutex
 	}
 )
@@ -101,6 +102,9 @@ func newCollector() *collector {
 			connLabels, nil,
 		),
 	}
+	//任何实现了 prometheus.Collector 接口的对象都可以被注册到 Prometheus 注册表中，以便自动收集和导出指标数据。
+	//常见的实现包括 prometheus.Gauge, prometheus.Counter, prometheus.Histogram 和 prometheus.Summary 等类型，
+	//这些类型分别代表不同种类的指标数据
 
 	prometheus.MustRegister(c)
 
@@ -108,6 +112,7 @@ func newCollector() *collector {
 }
 
 // Describe implements the prometheus.Collector interface.
+// 此方法用于发送指标描述符到提供的通道。描述符包含了 Prometheus 指标的名称、帮助信息、标签等。
 func (s *collector) Describe(descs chan<- *prometheus.Desc) {
 	descs <- s.hitDesc
 	descs <- s.missDesc
@@ -119,12 +124,13 @@ func (s *collector) Describe(descs chan<- *prometheus.Desc) {
 }
 
 // Collect implements the prometheus.Collector interface.
+// 此方法用于收集指标值，并将它们发送到提供的通道。
 func (s *collector) Collect(metrics chan<- prometheus.Metric) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	for _, client := range s.clients {
-		key, clientType := client.key, client.clientType
+		key, clientType := client.key, client.clientType // key是rdis的地址
 		stats := client.poolStats()
 
 		metrics <- prometheus.MustNewConstMetric(

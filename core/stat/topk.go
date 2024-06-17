@@ -16,11 +16,11 @@ func (h *taskHeap) Swap(i, j int) {
 	(*h)[i], (*h)[j] = (*h)[j], (*h)[i]
 }
 
-func (h *taskHeap) Push(x any) {
+func (h *taskHeap) Push(x any) { //在尾部追加
 	*h = append(*h, x.(Task))
 }
 
-func (h *taskHeap) Pop() any {
+func (h *taskHeap) Pop() any { //在尾部拿走
 	old := *h
 	n := len(old)
 	x := old[n-1]
@@ -28,7 +28,7 @@ func (h *taskHeap) Pop() any {
 	return x
 }
 
-func topK(all []Task, k int) []Task {
+func topK(all []Task, k int) []Task { //返回all里面前k最小的值
 	h := new(taskHeap)
 	heap.Init(h)
 

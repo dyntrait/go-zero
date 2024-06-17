@@ -17,7 +17,7 @@ type (
 
 	// A ScriptCache is a cache that stores a script with its sha key.
 	ScriptCache struct {
-		atomic.Value
+		atomic.Value //这个值里面竟然放map
 	}
 )
 

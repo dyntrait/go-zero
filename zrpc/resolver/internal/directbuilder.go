@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc/resolver"
 )
 
-type directBuilder struct{}
+type directBuilder struct{} //注意这是Builder模式，工厂模式
 
 func (d *directBuilder) Build(target resolver.Target, cc resolver.ClientConn, _ resolver.BuildOptions) (
 	resolver.Resolver, error) {

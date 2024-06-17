@@ -23,6 +23,7 @@ const (
 	internalAllowed   = 1
 	internalHitQuota  = 2
 )
+// Lua 中的 String 和 Number 需要通过 tonumber()和 tostring()进行转换
 
 var (
 	// ErrUnknownCode is an error that represents unknown status code.

@@ -25,7 +25,7 @@ const (
 var (
 	reporter     = logx.Alert
 	lock         sync.RWMutex
-	lessExecutor = executors.NewLessExecutor(time.Minute * 5)
+	lessExecutor = executors.NewLessExecutor(time.Minute * 5) //默认情况下每隔5min对外输出一下日志
 	dropped      int32
 	clusterName  = proc.Env(clusterNameKey)
 )

@@ -15,7 +15,7 @@ const addrSep = ","
 var (
 	clusterManager = syncx.NewResourceManager()
 	// clusterPoolSize is default pool size for cluster type of redis.
-	clusterPoolSize = 5 * runtime.GOMAXPROCS(0)
+	clusterPoolSize = 5 * runtime.GOMAXPROCS(0) //因为0<1,所以不会改变runtime的设置，并返回了runtime上一次设置值
 )
 
 func getCluster(r *Redis) (*red.ClusterClient, error) {

@@ -30,7 +30,7 @@ func escape(input string) string {
 	for _, ch := range input {
 		switch ch {
 		case '\x00':
-			b.WriteString(`\x00`)
+			b.WriteString(`\x00`) //表示nil字符，c语言字符串的结束标志
 		case '\r':
 			b.WriteString(`\r`)
 		case '\n':
@@ -42,7 +42,7 @@ func escape(input string) string {
 		case '"':
 			b.WriteString(`\"`)
 		case '\x1a':
-			b.WriteString(`\x1a`)
+			b.WriteString(`\x1a`) //表示EOF
 		default:
 			b.WriteRune(ch)
 		}
@@ -65,7 +65,7 @@ func format(query string, args ...any) (val string, err error) {
 
 	var b strings.Builder
 	var argIndex int
-	bytes := len(query)
+	bytes := len(query) //是长度
 
 	for i := 0; i < bytes; i++ {
 		ch := query[i]
@@ -87,7 +87,7 @@ func format(query string, args ...any) (val string, err error) {
 				}
 			}
 
-			if j > i+1 {
+			if j > i+1 { //j是个双位数
 				index, err := strconv.Atoi(query[i+1 : j])
 				if err != nil {
 					return "", err

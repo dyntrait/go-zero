@@ -57,7 +57,7 @@ func (g *flightGroup) createCall(key string) (c *call, done bool) {
 	g.lock.Lock()
 	if c, ok := g.calls[key]; ok {
 		g.lock.Unlock()
-		c.wg.Wait()
+		c.wg.Wait() //多个函数调用都持有这个c,第一个调用Do函数只是从map中删除了key,但是value还是被其他函数调用持有。fresh根据c.wg是否完成来的
 		return c, true
 	}
 

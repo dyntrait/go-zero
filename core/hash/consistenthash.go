@@ -26,7 +26,7 @@ type (
 		hashFunc Func
 		replicas int                             // 虚拟节点放大因子
 		keys     []uint64                        // 存储虚拟节点（hash）,redis的key来找放哪个节点时，对hash(key)<=virtual node的hash,此时virtual node对应的真实node就是地址
-		ring     map[uint64][]any                // 虚拟节点与实际node的对应关系
+		ring     map[uint64][]any                // 虚拟节点与实际node(node可以是一个指向实际对象的指针)的对应关系
 		nodes    map[string]lang.PlaceholderType //实际节点的字符串表示
 		lock     sync.RWMutex
 	}
@@ -89,6 +89,7 @@ func (h *ConsistentHash) AddWithReplicas(node any, replicas int) {
 
 // AddWithWeight adds the node with weight, the weight can be 1 to 100, indicates the percent,
 // the later call will overwrite the replicas of the former calls.
+// 这里的node 可以是Redis这个结构体指针
 func (h *ConsistentHash) AddWithWeight(node any, weight int) {
 	// don't need to make sure weight not larger than TopWeight,
 	// because AddWithReplicas makes sure replicas cannot be larger than h.replicas
@@ -152,7 +153,7 @@ func (h *ConsistentHash) removeRingNode(hash uint64, nodeRepr string) {
 	if nodes, ok := h.ring[hash]; ok {
 		newNodes := nodes[:0]
 		for _, x := range nodes {
-			if repr(x) != nodeRepr {
+			if repr(x) != nodeRepr { //有其他节点的hash一样
 				newNodes = append(newNodes, x)
 			}
 		}

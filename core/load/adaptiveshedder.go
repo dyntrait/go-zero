@@ -17,7 +17,7 @@ import (
 
 const (
 	defaultBuckets = 50
-	defaultWindow  = time.Second * 5
+	defaultWindow  = time.Second * 5 //所有的桶加起来
 	// using 1000m notation, 900m is like 90%, keep it as var for unit test
 	defaultCpuThreshold = 900
 	defaultMinRt        = float64(time.Second / time.Millisecond)
@@ -63,18 +63,14 @@ type (
 	ShedderOption func(opts *shedderOptions)
 
 	shedderOptions struct {
-		window       time.Duration //滑动时间窗口大小
+		window       time.Duration //滑动时间窗口大小，所有的桶加起来的
 		buckets      int
 		cpuThreshold int64
 	}
 
 	adaptiveShedder struct {
 		cpuThreshold    int64
-<<<<<<< HEAD
-		windows         int64 //1s对应的bucket个数
-=======
 		windowScale     float64
->>>>>>> upstream/master
 		flying          int64
 		avgFlying       float64
 		avgFlyingLock   syncx.SpinLock
@@ -105,7 +101,7 @@ func NewAdaptiveShedder(opts ...ShedderOption) Shedder {
 	options := shedderOptions{
 		window:       defaultWindow,
 		buckets:      defaultBuckets,
-		cpuThreshold: defaultCpuThreshold,
+		cpuThreshold: defaultCpuThreshold, // 900
 	}
 	for _, opt := range opts {
 		opt(&options)
@@ -113,11 +109,7 @@ func NewAdaptiveShedder(opts ...ShedderOption) Shedder {
 	bucketDuration := options.window / time.Duration(options.buckets)
 	return &adaptiveShedder{
 		cpuThreshold:    options.cpuThreshold,
-<<<<<<< HEAD
-		windows:         int64(time.Second / bucketDuration), //1s对应的bucket个数
-=======
-		windowScale:     float64(time.Second) / float64(bucketDuration) / millisecondsPerSecond,
->>>>>>> upstream/master
+		windowScale:     float64(time.Second) / float64(bucketDuration) / millisecondsPerSecond, //1s内多少个桶
 		overloadTime:    syncx.NewAtomicDuration(),
 		droppedRecently: syncx.NewAtomicBool(),
 		//忽略当前正在写入窗口（桶），时间周期不完整可能导致数据异常
@@ -154,7 +146,7 @@ func (as *adaptiveShedder) addFlying(delta int64) {
 	// it makes the service to serve as more requests as possible.
 	if delta < 0 {
 		as.avgFlyingLock.Lock()
-		as.avgFlying = as.avgFlying*flyingBeta + float64(flying)*(1-flyingBeta)  //虽然叫 avgFlying，但是并不是平均的意思
+		as.avgFlying = as.avgFlying*flyingBeta + float64(flying)*(1-flyingBeta) //虽然叫 avgFlying，但是并不是平均的意思
 		as.avgFlyingLock.Unlock()
 	}
 }
@@ -163,32 +155,17 @@ func (as *adaptiveShedder) highThru() bool {
 	as.avgFlyingLock.Lock()
 	avgFlying := as.avgFlying
 	as.avgFlyingLock.Unlock()
-<<<<<<< HEAD
-	maxFlight := as.maxFlight() //最大的并发请求
-	return int64(avgFlying) > maxFlight && atomic.LoadInt64(&as.flying) > maxFlight
-=======
-	maxFlight := as.maxFlight() * as.overloadFactor()
+	maxFlight := as.maxFlight() * as.overloadFactor() //0.1~1
 	return avgFlying > maxFlight && float64(atomic.LoadInt64(&as.flying)) > maxFlight
->>>>>>> upstream/master
 }
 
 func (as *adaptiveShedder) maxFlight() float64 {
 	// windows = buckets per second
 	// maxQPS = maxPASS * windows
 	// minRT = min average response time in milliseconds
-<<<<<<< HEAD
-	// maxQPS * minRT / milliseconds_per_second 1s最多pass个请求,为什么要除以1e3=1000？
-	// 1s内as.maxPass()*as.windows)个成功的个数
-	// 请求通过数与响应时间都是通过滑动窗口来实现的
-	// as.maxPass()*as.windows - 每个桶最大的qps * 1s内包含桶的数量
-	// as.minRt()/1e3 - 窗口所有桶中最小的平均响应时间 / 1000ms这里是为了转换成秒
-
-	return int64(math.Max(1, float64(as.maxPass()*as.windows)*(as.minRt()/1e3)))
-=======
 	// allowedFlying = maxQPS * minRT / milliseconds_per_second
 	maxFlight := float64(as.maxPass()) * as.minRt() * as.windowScale
 	return mathx.AtLeast(maxFlight, 1)
->>>>>>> upstream/master
 }
 
 func (as *adaptiveShedder) maxPass() int64 {

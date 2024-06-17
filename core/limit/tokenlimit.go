@@ -14,6 +14,8 @@ import (
 	xrate "golang.org/x/time/rate"
 )
 
+// Redis 的 pexpire 等命令不支持小数，但 Lua 的 Number 类型可以存放小数，
+// 因此 Number 类型传递给 Redis 时最好通过 math.ceil()等方式转换以避免存在小数导致命令失败。
 const (
 	tokenFormat     = "{%s}.tokens"
 	timestampFormat = "{%s}.ts"
@@ -21,8 +23,11 @@ const (
 )
 
 // to be compatible with aliyun redis, we cannot use `local key = KEYS[1]` to reuse the key
-// KEYS[1] as tokens_key
+// KEYS[1] as tokens_key 上次余下的数量
 // KEYS[2] as timestamp_key
+
+//计算 1.新增的=时间差*rate 2.新增的+上次余下的 是否大于请求的数量
+
 var script = redis.NewScript(`local rate = tonumber(ARGV[1])
 local capacity = tonumber(ARGV[2])
 local now = tonumber(ARGV[3])

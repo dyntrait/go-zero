@@ -38,7 +38,7 @@ type (
 		wgBarrier   syncx.Barrier             //保护waitgroup的Done Wait互斥？
 		confirmChan chan lang.PlaceholderType //一个通知：任务数达到了，可以批量执行了
 		inflight    int32                     //使用原子性保护
-		guarded     bool                      //使用lock保护
+		guarded     bool                      //使用lock保护,看一下后台任务是否在执行，没在执行，启动他
 		newTicker   func(duration time.Duration) timex.Ticker
 		lock        sync.Mutex
 	}
@@ -131,7 +131,7 @@ func (pe *PeriodicalExecutor) backgroundFlush() {
 				commanded = true
 				atomic.AddInt32(&pe.inflight, -1)
 				pe.enterExecution()
-				pe.confirmChan <- lang.Placeholder
+				pe.confirmChan <- lang.Placeholder //通知AddTask可以返回了，上一批次任务已经完成了
 				pe.executeTasks(vals)
 				last = timex.Now()
 			case <-ticker.Chan():

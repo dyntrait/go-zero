@@ -40,8 +40,8 @@ func (q *Queue) Put(element any) {
 		nodes := make([]any, len(q.elements)+q.size)
 		//把还没有出队的元素放到新队列头部
 		//处理[head,旧队列尾部]元素
-		copy(nodes, q.elements[q.head:])
-		//[head,旧队列尾部]元素个数=len(q.elements)-q.head
+		copy(nodes, q.elements[q.head:]) //q.elements 此时还是旧队列
+		//[head,旧队列尾部]元素个数=len(q.elements)-q.head，q.elements[:q.head]表示新添加的
 		copy(nodes[len(q.elements)-q.head:], q.elements[:q.head])
 		q.head = 0
 		q.tail = len(q.elements)
